@@ -20,15 +20,12 @@ SYSTEM_PROMPT = (
 )
 
 _histories: dict[int, list[dict]] = defaultdict(list)
-MAX_HISTORY = 40
 
 router = Router()
 
 
 def _push(user_id: int, role: str, text: str) -> None:
     _histories[user_id].append({"role": role, "content": text})
-    if len(_histories[user_id]) > MAX_HISTORY:
-        _histories[user_id] = _histories[user_id][-MAX_HISTORY:]
 
 
 @router.message(Command("newchat"))
