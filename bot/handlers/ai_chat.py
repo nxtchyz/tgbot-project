@@ -23,7 +23,7 @@ model = genai.GenerativeModel(
 
 # История диалога в памяти, per user_id
 _histories: dict[int, list[dict]] = defaultdict(list)
-MAX_HISTORY = 20  # последние 10 обменов
+MAX_HISTORY = 40  # последние 20 обменов
 
 router = Router()
 
