@@ -1,9 +1,9 @@
 from __future__ import annotations
 from datetime import date, timedelta
 
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 router = Router()
 
@@ -178,3 +178,48 @@ async def cmd_week(message: Message) -> None:
         f"{monday.day} {MONTHS_GEN[monday.month]} — {saturday.day} {MONTHS_GEN[saturday.month]}</i>"
     )
     await message.answer(header + "\n" + "\n\n".join(blocks), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "nav:pairs")
+async def cb_nav_pairs(callback: CallbackQuery) -> None:
+    today = date.today()
+    parity = week_parity(today)
+    if today.weekday() == 6:
+        await callback.message.answer("Сегодня воскресенье — пар нет 🎉")
+    else:
+        pairs = get_day_pairs(today.weekday(), parity)
+        if not pairs:
+            await callback.message.answer(
+                f"<b>{DAY_NAMES[today.weekday()]}, {today.day} {MONTHS_GEN[today.month]}</b>\n\nПар нет 🎉",
+                parse_mode="HTML",
+            )
+        else:
+            block = fmt_day_block(today, parity)
+            await callback.message.answer(
+                f"📅 <b>Сегодня</b>  <i>({parity_label(parity)} неделя)</i>\n\n{block}",
+                parse_mode="HTML",
+            )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "nav:week")
+async def cb_nav_week(callback: CallbackQuery) -> None:
+    today = date.today()
+    parity = week_parity(today)
+    monday = today - timedelta(days=today.weekday())
+    saturday = monday + timedelta(days=5)
+    blocks = []
+    for i in range(6):
+        block = fmt_day_block(monday + timedelta(days=i), parity)
+        if block:
+            blocks.append(block)
+    if not blocks:
+        await callback.message.answer("На этой неделе пар нет 🎉")
+    else:
+        header = (
+            f"📅 <b>Расписание на неделю</b>\n"
+            f"<i>{parity_label(parity)} · "
+            f"{monday.day} {MONTHS_GEN[monday.month]} — {saturday.day} {MONTHS_GEN[saturday.month]}</i>"
+        )
+        await callback.message.answer(header + "\n" + "\n\n".join(blocks), parse_mode="HTML")
+    await callback.answer()

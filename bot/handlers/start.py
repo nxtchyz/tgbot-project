@@ -51,6 +51,25 @@ def main_menu_kb():
     return builder.as_markup()
 
 
+def planner_menu_kb():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="➕ Добавить задачу", callback_data="nav:add")
+    builder.button(text="📋 Мои задачи",      callback_data="nav:tasks")
+    builder.button(text="📅 Сегодня",          callback_data="nav:today")
+    builder.button(text="◀️ Главное меню",     callback_data="nav:menu")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def schedule_menu_kb():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🗓 Пары сегодня",   callback_data="nav:pairs")
+    builder.button(text="📆 На всю неделю",  callback_data="nav:week")
+    builder.button(text="◀️ Главное меню",   callback_data="nav:menu")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
 async def _show_main_menu(message: Message) -> None:
     await message.bot.set_my_commands(
         MAIN_MENU_COMMANDS,
@@ -77,12 +96,9 @@ async def cb_planner(callback: CallbackQuery) -> None:
         scope=BotCommandScopeChat(chat_id=callback.message.chat.id),
     )
     await callback.message.edit_text(
-        "📅 <b>Ежедневник</b>\n\n"
-        "/add — добавить задачу\n"
-        "/tasks — список активных задач\n"
-        "/today — задачи на сегодня\n\n"
-        "<i>/menu — вернуться в главное меню</i>",
+        "📅 <b>Ежедневник</b>",
         parse_mode="HTML",
+        reply_markup=planner_menu_kb(),
     )
     await callback.answer()
 
@@ -94,11 +110,24 @@ async def cb_schedule(callback: CallbackQuery) -> None:
         scope=BotCommandScopeChat(chat_id=callback.message.chat.id),
     )
     await callback.message.edit_text(
-        "📚 <b>Расписание пар</b>\n\n"
-        "/pairs — пары на сегодня\n"
-        "/week — расписание на всю неделю\n\n"
-        "<i>/menu — вернуться в главное меню</i>",
+        "📚 <b>Расписание пар</b>",
         parse_mode="HTML",
+        reply_markup=schedule_menu_kb(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "nav:menu")
+async def cb_nav_menu(callback: CallbackQuery) -> None:
+    await callback.bot.set_my_commands(
+        MAIN_MENU_COMMANDS,
+        scope=BotCommandScopeChat(chat_id=callback.message.chat.id),
+    )
+    name = callback.from_user.first_name or "друг"
+    await callback.message.edit_text(
+        START_TEXT.format(name=name),
+        parse_mode="HTML",
+        reply_markup=main_menu_kb(),
     )
     await callback.answer()
 

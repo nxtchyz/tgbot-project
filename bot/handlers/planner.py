@@ -256,3 +256,35 @@ async def cb_back_list(callback: CallbackQuery) -> None:
     else:
         await callback.message.edit_text("Твои задачи:", reply_markup=tasks_list_kb(tasks))
     await callback.answer()
+
+
+@router.callback_query(F.data == "nav:add")
+async def cb_nav_add(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(AddTask.title)
+    await callback.message.answer("Как называется задача?")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "nav:tasks")
+async def cb_nav_tasks(callback: CallbackQuery) -> None:
+    tasks = await crud.get_tasks(callback.from_user.id)
+    if not tasks:
+        await callback.message.answer("У тебя нет активных задач.")
+    else:
+        await callback.message.answer("Твои задачи:", reply_markup=tasks_list_kb(tasks))
+    await callback.answer()
+
+
+@router.callback_query(F.data == "nav:today")
+async def cb_nav_today(callback: CallbackQuery) -> None:
+    today = date.today().isoformat()
+    tasks = await crud.get_todays_tasks(callback.from_user.id, today)
+    if not tasks:
+        await callback.message.answer("На сегодня задач нет. Отдыхай!")
+    else:
+        lines = [f"<b>Задачи на сегодня ({today}):</b>"]
+        for t in tasks:
+            time_str = f" в {t['due_time']}" if t["due_time"] else ""
+            lines.append(f"• {t['title']}{time_str}")
+        await callback.message.answer("\n".join(lines), parse_mode="HTML")
+    await callback.answer()
