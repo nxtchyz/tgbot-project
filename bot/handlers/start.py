@@ -1,6 +1,9 @@
 from aiogram import Router
 from aiogram.filters import Command
-from aiogram.types import Message, BotCommand, BotCommandScopeChat
+from aiogram.types import Message, BotCommand, BotCommandScopeChat, FSInputFile
+
+import config
+from db.models import DB_PATH
 
 router = Router()
 
@@ -79,6 +82,13 @@ async def cmd_planner(message: Message) -> None:
         "<i>/menu — вернуться в главное меню</i>",
         parse_mode="HTML",
     )
+
+
+@router.message(Command("getdb"))
+async def cmd_getdb(message: Message) -> None:
+    if message.from_user.id != config.ADMIN_ID:
+        return
+    await message.answer_document(FSInputFile(DB_PATH, filename="planner.db"))
 
 
 @router.message(Command("schedule"))
