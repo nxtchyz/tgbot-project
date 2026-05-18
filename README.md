@@ -8,7 +8,7 @@
 - Добавление задач с дедлайном, описанием и временем
 - Просмотр списка активных задач
 - Отметка задач как выполненных и удаление
-- Утренняя сводка дел на день в 09:00
+- Утренняя сводка дел на день в 09:00 по Москве
 - Напоминание за N минут до дедлайна
 
 ### 📚 Расписание пар
@@ -17,7 +17,7 @@
 - Номера пар, преподаватели, аудитории
 - Автоматическое отображение окон между парами
 
-### 🤖 AI-ассистент (Gemini)
+### 🤖 AI-ассистент (Llama 3.3 70B via Groq)
 - Отвечает на любые свободные сообщения
 - Помнит контекст последних 20 обменов
 - Не мешает работе команд и ежедневника
@@ -25,11 +25,12 @@
 
 ## Стек
 
-- **Python 3.11+**
+- **Python 3.13**
 - **aiogram 3.x** — Telegram Bot API
 - **SQLite + aiosqlite** — база данных
 - **APScheduler** — планировщик напоминаний
-- **Google Gemini 1.5 Flash** — AI-ассистент
+- **Llama 3.3 70B (Groq)** — AI-ассистент
+- **aiohttp** — HTTP запросы к Groq API
 - **python-dotenv** — конфигурация
 
 ## Установка
@@ -44,11 +45,11 @@ pip install -r requirements.txt
 
 ```
 BOT_TOKEN=your_telegram_token
-GEMINI_API_KEY=your_gemini_key
+GROQ_API_KEY=your_groq_key
 ```
 
 - Telegram токен — у [@BotFather](https://t.me/BotFather)
-- Gemini API ключ — на [aistudio.google.com](https://aistudio.google.com)
+- Groq API ключ — на [console.groq.com](https://console.groq.com) (бесплатно)
 
 ## Запуск
 
@@ -65,7 +66,7 @@ tgbot_project/
 │   │   ├── start.py        # /start, /menu, навигация по разделам
 │   │   ├── planner.py      # ежедневник
 │   │   ├── schedule.py     # расписание пар
-│   │   └── ai_chat.py      # AI-ассистент (Gemini)
+│   │   └── ai_chat.py      # AI-ассистент (Groq / Llama)
 │   ├── keyboards/
 │   │   └── planner_kb.py   # inline-клавиатуры
 │   └── scheduler.py        # APScheduler — напоминания и сводка
