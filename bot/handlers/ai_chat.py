@@ -1,4 +1,6 @@
 from __future__ import annotations
+import asyncio
+import logging
 from collections import defaultdict
 
 import google.generativeai as genai
@@ -7,6 +9,8 @@ from aiogram.filters import Command, StateFilter
 from aiogram.types import Message
 
 import config
+
+log = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "Ты умный персональный ассистент пользователя в Telegram-боте «Правая рука». "
@@ -66,10 +70,11 @@ async def ai_handler(message: Message) -> None:
 
     try:
         chat = model.start_chat(history=history_snapshot)
-        response = await chat.send_message_async(user_text)
+        response = await asyncio.to_thread(chat.send_message, user_text)
         reply = response.text
         _push(user_id, "model", reply)
         await message.answer(reply)
-    except Exception:
+    except Exception as e:
+        log.error("Gemini error: %s", e, exc_info=True)
         _histories[user_id].pop()
         await message.answer("⚠️ Не удалось получить ответ, попробуй чуть позже.")
