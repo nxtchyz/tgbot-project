@@ -1,13 +1,23 @@
 from __future__ import annotations
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram import Bot
 
 from db import crud
 
+MOSCOW = ZoneInfo("Europe/Moscow")
 
 scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
+
+
+def moscow_now() -> datetime:
+    return datetime.now(MOSCOW).replace(tzinfo=None)
+
+
+def moscow_today() -> str:
+    return datetime.now(MOSCOW).strftime("%Y-%m-%d")
 
 
 def setup_scheduler(bot: Bot) -> None:
@@ -32,11 +42,10 @@ def setup_scheduler(bot: Bot) -> None:
 
 
 async def send_morning_summary(bot: Bot) -> None:
-    """Sends today's tasks to every user who has tasks today."""
-    today = date.today().isoformat()
-    # We get all undone tasks for today grouped by user
-    async with __import__("aiosqlite").connect(crud.DB_PATH) as db:
-        db.row_factory = __import__("aiosqlite").Row
+    today = moscow_today()
+    import aiosqlite
+    async with aiosqlite.connect(crud.DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT DISTINCT user_id FROM tasks WHERE due_date = ? AND done = 0", (today,)
         ) as cursor:
@@ -46,7 +55,7 @@ async def send_morning_summary(bot: Bot) -> None:
         tasks = await crud.get_todays_tasks(user_id, today)
         if not tasks:
             continue
-        lines = [f"<b>Доброе утро! Задачи на сегодня:</b>"]
+        lines = ["<b>Доброе утро! Задачи на сегодня:</b>"]
         for t in tasks:
             time_str = f" в {t['due_time']}" if t["due_time"] else ""
             lines.append(f"• {t['title']}{time_str}")
@@ -57,12 +66,12 @@ async def send_morning_summary(bot: Bot) -> None:
 
 
 async def check_upcoming_reminders(bot: Bot) -> None:
-    """Every minute checks if any task needs a reminder right now."""
-    now = datetime.now()
+    now = moscow_now()
     today = now.strftime("%Y-%m-%d")
 
-    async with __import__("aiosqlite").connect(crud.DB_PATH) as db:
-        db.row_factory = __import__("aiosqlite").Row
+    import aiosqlite
+    async with aiosqlite.connect(crud.DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM tasks WHERE due_date = ? AND due_time IS NOT NULL AND done = 0",
             (today,),
@@ -71,12 +80,17 @@ async def check_upcoming_reminders(bot: Bot) -> None:
 
     for task in tasks:
         try:
-            task_dt = datetime.strptime(f"{task['due_date']} {task['due_time']}", "%Y-%m-%d %H:%M")
+            task_dt = datetime.strptime(
+                f"{task['due_date']} {task['due_time']}", "%Y-%m-%d %H:%M"
+            )
         except ValueError:
             continue
+
         remind_at = task_dt - timedelta(minutes=task["remind_min"])
-        # Fire if current minute matches reminder minute
-        if remind_at.strftime("%Y-%m-%d %H:%M") == now.strftime("%Y-%m-%d %H:%M"):
+        diff = abs((remind_at - now).total_seconds())
+
+        # Срабатываем если попали в окно ±59 секунд от нужной минуты
+        if diff <= 59:
             text = (
                 f"🔔 <b>Напоминание!</b>\n"
                 f"Через {task['remind_min']} мин: <b>{task['title']}</b>\n"
