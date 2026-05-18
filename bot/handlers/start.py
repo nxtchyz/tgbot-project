@@ -87,8 +87,15 @@ async def cmd_planner(message: Message) -> None:
 @router.message(Command("getdb"))
 async def cmd_getdb(message: Message) -> None:
     if message.from_user.id != config.ADMIN_ID:
+        await message.answer(f"ID: {message.from_user.id}")
         return
-    await message.answer_document(FSInputFile(DB_PATH, filename="planner.db"))
+    import os
+    paths_to_check = [DB_PATH, f"/app/data/{DB_PATH}", f"/app/{DB_PATH}"]
+    for path in paths_to_check:
+        if os.path.exists(path):
+            await message.answer_document(FSInputFile(path, filename="planner.db"))
+            return
+    await message.answer(f"Файл не найден. Проверил: {', '.join(paths_to_check)}\nРабочая папка: {os.getcwd()}")
 
 
 @router.message(Command("schedule"))
