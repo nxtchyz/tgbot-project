@@ -54,9 +54,12 @@ async def ai_handler(message: Message) -> None:
     contents = _histories[user_id].copy()
     contents.append({"role": "user", "parts": [{"text": user_text}]})
 
+    system_seed = [
+        {"role": "user",  "parts": [{"text": SYSTEM_PROMPT}]},
+        {"role": "model", "parts": [{"text": "Понял, буду следовать инструкциям."}]},
+    ]
     payload = {
-        "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-        "contents": contents,
+        "contents": system_seed + contents,
         "generationConfig": {"maxOutputTokens": 1024},
     }
 
