@@ -8,18 +8,19 @@ from aiogram.types import Message
 
 import config
 
-genai.configure(api_key=config.GEMINI_API_KEY)
-
 SYSTEM_PROMPT = (
     "Ты умный персональный ассистент пользователя в Telegram-боте «Правая рука». "
     "Отвечай на русском языке, кратко и по делу. "
     "Помогай с любыми вопросами: учёба, советы, объяснения, идеи и всё остальное."
 )
 
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    system_instruction=SYSTEM_PROMPT,
-)
+model = None
+if config.GEMINI_API_KEY:
+    genai.configure(api_key=config.GEMINI_API_KEY)
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction=SYSTEM_PROMPT,
+    )
 
 # История диалога в памяти, per user_id
 _histories: dict[int, list[dict]] = defaultdict(list)
@@ -51,6 +52,10 @@ async def cmd_newchat(message: Message) -> None:
 
 @router.message(StateFilter(None), F.text, ~F.text.startswith("/"))
 async def ai_handler(message: Message) -> None:
+    if model is None:
+        await message.answer("⚠️ AI-ассистент не настроен: отсутствует GEMINI_API_KEY.")
+        return
+
     user_id = message.from_user.id
     user_text = message.text.strip()
 
@@ -66,5 +71,5 @@ async def ai_handler(message: Message) -> None:
         _push(user_id, "model", reply)
         await message.answer(reply)
     except Exception:
-        _histories[user_id].pop()  # откатываем незакрытое сообщение
+        _histories[user_id].pop()
         await message.answer("⚠️ Не удалось получить ответ, попробуй чуть позже.")
