@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 import config
 from db.models import init_db
-from bot.handlers import planner, start, schedule
+from bot.handlers import planner, start, schedule, ai_chat
 from bot.handlers.start import MAIN_MENU_COMMANDS
 from bot.scheduler import setup_scheduler
 
@@ -28,6 +28,7 @@ async def main() -> None:
     dp.include_router(start.router)
     dp.include_router(planner.router)
     dp.include_router(schedule.router)
+    dp.include_router(ai_chat.router)  # последним — ловит всё остальное
 
     await bot.set_my_commands(MAIN_MENU_COMMANDS)
     log.info("Bot commands set")
