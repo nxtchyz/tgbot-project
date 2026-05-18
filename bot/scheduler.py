@@ -94,10 +94,25 @@ async def check_upcoming_reminders(bot: Bot) -> None:
         except ValueError:
             continue
 
+        # Уведомление в момент дедлайна
+        if abs((task_dt - now).total_seconds()) <= 59:
+            text = (
+                f"⏰ <b>Время пришло!</b>\n"
+                f"<b>{task['title']}</b>"
+            )
+            try:
+                await bot.send_message(task["user_id"], text, parse_mode="HTML")
+            except Exception:
+                pass
+            continue
+
+        # Уведомление за remind_min минут до дедлайна (только для обычных задач)
+        if task["repeat_remind"]:
+            continue
+
         remind_at = task_dt - timedelta(minutes=task["remind_min"])
         diff = abs((remind_at - now).total_seconds())
 
-        # Срабатываем если попали в окно ±59 секунд от нужной минуты
         if diff <= 59:
             text = (
                 f"🔔 <b>Напоминание!</b>\n"
