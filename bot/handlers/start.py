@@ -61,7 +61,8 @@ async def cmd_menu(message: Message) -> None:
         MAIN_MENU_COMMANDS,
         scope=BotCommandScopeChat(chat_id=message.chat.id),
     )
-    await message.answer("Ты в главном меню. Выбери раздел:")
+    name = message.from_user.first_name or "друг"
+    await message.answer(START_TEXT.format(name=name), parse_mode="HTML")
 
 
 @router.message(Command("planner"))
