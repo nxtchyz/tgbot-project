@@ -12,6 +12,10 @@ _REF_ODD_MONDAY = date(2026, 5, 18)
 DAY_NAMES   = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 MONTHS_GEN  = ["", "янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
 
+PAIR_NUMBER = {"08:00": 1, "09:50": 2, "11:40": 3, "13:40": 4, "15:30": 5}
+PAIR_LABEL  = {1: "1-я", 2: "2-я", 3: "3-я", 4: "4-я", 5: "5-я"}
+PAIR_TIME   = {v: k for k, v in PAIR_NUMBER.items()}  # обратный маппинг для окон
+
 SUBJECT_EMOJI = {
     "Физкультура":                                    "🏃",
     "Математический анализ":                          "📊",
@@ -88,9 +92,9 @@ def get_day_pairs(weekday: int, parity: int) -> list[dict]:
     return [p for p in SCHEDULE.get(weekday, []) if p["weeks"] == 0 or p["weeks"] == parity]
 
 
-def fmt_pair(pair: dict) -> str:
+def fmt_pair(pair: dict, num: int) -> str:
     emoji = SUBJECT_EMOJI.get(pair["subject"], "•")
-    lines = [f"{emoji} <b>{pair['time']}</b>  {pair['subject']}"]
+    lines = [f"<b>{PAIR_LABEL[num]} пара</b>  {emoji} {pair['time']}  {pair['subject']}"]
     detail_parts = [f"<i>{pair['type']}</i>"]
     if pair.get("teacher"):
         detail_parts.append(pair["teacher"])
@@ -104,8 +108,23 @@ def fmt_day_block(d: date, parity: int) -> str | None:
     pairs = get_day_pairs(d.weekday(), parity)
     if not pairs:
         return None
+
+    pair_by_num = {PAIR_NUMBER[p["time"]]: p for p in pairs if p["time"] in PAIR_NUMBER}
+    if not pair_by_num:
+        return None
+
+    min_num = min(pair_by_num)
+    max_num = max(pair_by_num)
+
+    items = []
+    for num in range(min_num, max_num + 1):
+        if num in pair_by_num:
+            items.append(fmt_pair(pair_by_num[num], num))
+        else:
+            items.append(f"🪟 <i>Окно — {PAIR_LABEL[num]} пара ({PAIR_TIME[num]})</i>")
+
     header = f"{DAY_SEPARATOR}\n<b>{DAY_NAMES[d.weekday()]}, {d.day} {MONTHS_GEN[d.month]}</b>"
-    return header + "\n\n" + "\n\n".join(fmt_pair(p) for p in pairs)
+    return header + "\n\n" + "\n\n".join(items)
 
 
 # ── /pairs — пары на сегодня ───────────────────────────────────────────────────
