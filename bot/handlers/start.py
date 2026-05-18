@@ -5,15 +5,22 @@ from aiogram.types import Message, BotCommand, BotCommandScopeChat
 router = Router()
 
 MAIN_MENU_COMMANDS = [
-    BotCommand(command="start", description="Главное меню"),
-    BotCommand(command="planner", description="📅 Ежедневник — дела и напоминания"),
+    BotCommand(command="start",    description="Главное меню"),
+    BotCommand(command="planner",  description="📅 Ежедневник — дела и напоминания"),
+    BotCommand(command="schedule", description="📚 Расписание — пары по дням"),
 ]
 
 PLANNER_COMMANDS = [
-    BotCommand(command="add", description="Добавить задачу"),
+    BotCommand(command="add",   description="Добавить задачу"),
     BotCommand(command="tasks", description="Мои задачи"),
     BotCommand(command="today", description="Задачи на сегодня"),
-    BotCommand(command="menu", description="◀️ Главное меню"),
+    BotCommand(command="menu",  description="◀️ Главное меню"),
+]
+
+SCHEDULE_COMMANDS = [
+    BotCommand(command="pairs", description="Пары на сегодня"),
+    BotCommand(command="week",  description="Расписание на неделю"),
+    BotCommand(command="menu",  description="◀️ Главное меню"),
 ]
 
 START_TEXT = """
@@ -25,6 +32,11 @@ START_TEXT = """
 <b>📅 Ежедневник</b>
 Добавляй задачи, ставь дедлайны и получай напоминания — утром сводку на день и в нужный момент перед делом.
 <i>/planner — открыть раздел</i>
+
+━━━━━━━━━━━━━━━━━━━
+<b>📚 Расписание пар</b>
+Смотри пары на сегодня или на всю неделю с учётом чётности.
+<i>/schedule — открыть раздел</i>
 
 ━━━━━━━━━━━━━━━━━━━
 <i>🔜 Скоро появятся новые разделы...</i>
@@ -49,10 +61,7 @@ async def cmd_menu(message: Message) -> None:
         MAIN_MENU_COMMANDS,
         scope=BotCommandScopeChat(chat_id=message.chat.id),
     )
-    await message.answer(
-        "Ты в главном меню. Выбери раздел:",
-        parse_mode="HTML",
-    )
+    await message.answer("Ты в главном меню. Выбери раздел:")
 
 
 @router.message(Command("planner"))
@@ -66,6 +75,21 @@ async def cmd_planner(message: Message) -> None:
         "/add — добавить задачу\n"
         "/tasks — список активных задач\n"
         "/today — задачи на сегодня\n\n"
+        "<i>/menu — вернуться в главное меню</i>",
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("schedule"))
+async def cmd_schedule(message: Message) -> None:
+    await message.bot.set_my_commands(
+        SCHEDULE_COMMANDS,
+        scope=BotCommandScopeChat(chat_id=message.chat.id),
+    )
+    await message.answer(
+        "📚 <b>Расписание пар</b>\n\n"
+        "/pairs — пары на сегодня\n"
+        "/week — расписание на всю неделю\n\n"
         "<i>/menu — вернуться в главное меню</i>",
         parse_mode="HTML",
     )
