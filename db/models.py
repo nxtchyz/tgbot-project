@@ -1,6 +1,7 @@
+import os
 import aiosqlite
 
-DB_PATH = "planner.db"
+DB_PATH = os.path.join(os.getenv("DATA_DIR", "."), "planner.db")
 
 CREATE_USERS_TABLE = """
 CREATE TABLE IF NOT EXISTS users (
