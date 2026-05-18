@@ -21,10 +21,7 @@ SYSTEM_PROMPT = (
 model = None
 if config.GEMINI_API_KEY:
     genai.configure(api_key=config.GEMINI_API_KEY)
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        system_instruction=SYSTEM_PROMPT,
-    )
+    model = genai.GenerativeModel(model_name="gemini-pro")
 
 _histories: dict[int, list[dict]] = defaultdict(list)
 MAX_HISTORY = 40
@@ -55,7 +52,12 @@ async def ai_handler(message: Message) -> None:
 
     await message.bot.send_chat_action(message.chat.id, "typing")
 
-    history_snapshot = _histories[user_id].copy()
+    # Системный промпт — первым сообщением в истории (совместимо со старым SDK)
+    system_seed = [
+        {"role": "user",  "parts": [SYSTEM_PROMPT]},
+        {"role": "model", "parts": ["Понял, буду следовать этим инструкциям."]},
+    ]
+    history_snapshot = system_seed + _histories[user_id].copy()
 
     try:
         def _call() -> str:
