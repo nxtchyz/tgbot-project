@@ -94,7 +94,7 @@ def get_day_pairs(weekday: int, parity: int) -> list[dict]:
 
 def fmt_pair(pair: dict, num: int) -> str:
     emoji = SUBJECT_EMOJI.get(pair["subject"], "•")
-    lines = [f"<b>{PAIR_LABEL[num]} пара</b>  {emoji} {pair['time']}  {pair['subject']}"]
+    lines = [f"<b>{num}.</b>  {emoji} {pair['time']}  {pair['subject']}"]
     detail_parts = [f"<i>{pair['type']}</i>"]
     if pair.get("teacher"):
         detail_parts.append(pair["teacher"])
@@ -121,7 +121,7 @@ def fmt_day_block(d: date, parity: int) -> str | None:
         if num in pair_by_num:
             items.append(fmt_pair(pair_by_num[num], num))
         else:
-            items.append(f"🪟 <i>Окно — {PAIR_LABEL[num]} пара ({PAIR_TIME[num]})</i>")
+            items.append(f"🪟 <i>Окно — {num}. ({PAIR_TIME[num]})</i>")
 
     header = f"{DAY_SEPARATOR}\n<b>{DAY_NAMES[d.weekday()]}, {d.day} {MONTHS_GEN[d.month]}</b>"
     return header + "\n\n" + "\n\n".join(items)
