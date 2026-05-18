@@ -21,8 +21,6 @@ SCHEDULE: dict[int, list[dict]] = {
          "teacher": "Цехановский В.В.", "room": None, "weeks": 0},
     ],
     1: [  # Вторник
-        {"time": "08:00", "subject": "Физика, конт", "type": "Лекция",
-         "teacher": "Ходьков Д.А.", "room": None, "weeks": 0},
         {"time": "09:50", "subject": "Физкультура", "type": "Практика",
          "teacher": None, "room": None, "weeks": 0},
         {"time": "11:40", "subject": "Математический анализ", "type": "Лекция",
@@ -35,8 +33,6 @@ SCHEDULE: dict[int, list[dict]] = {
     2: [  # Среда
         {"time": "08:00", "subject": "Программирование", "type": "Лекция",
          "teacher": "Синев В.Е.", "room": "1158", "weeks": 0},
-        {"time": "09:50", "subject": "Информационные технологии", "type": "Лекция",
-         "teacher": "Цехановский В.В.", "room": "1158", "weeks": 0},
         {"time": "11:40", "subject": "Иностранный язык", "type": "Практика",
          "teacher": None, "room": "к.ИняЗ", "weeks": 0},
     ],
@@ -50,7 +46,7 @@ SCHEDULE: dict[int, list[dict]] = {
     ],
     4: [  # Пятница
         {"time": "08:00", "subject": "Физика", "type": "Практика",
-         "teacher": "Иманбаева Р.Т., Лоскутников В.С.", "room": "3102", "weeks": 1},
+         "teacher": "Лоскутников В.С.", "room": "3102", "weeks": 1},
         {"time": "09:50", "subject": "Алгебра и геометрия", "type": "Практика",
          "teacher": "Крым В.Р.", "room": "4210", "weeks": 0},
         {"time": "11:40", "subject": "История России", "type": "Практика",
@@ -59,8 +55,6 @@ SCHEDULE: dict[int, list[dict]] = {
          "teacher": "Тарасова Е.А.", "room": "5427", "weeks": 0},
     ],
     5: [  # Суббота
-        {"time": "08:00", "subject": "Экология", "type": "Лекция",
-         "teacher": "Ковалевская А.С.", "room": None, "weeks": 1},
         {"time": "09:50", "subject": "Алгебра и геометрия", "type": "Лекция",
          "teacher": "Костырев И.И.", "room": "3308", "weeks": 0},
         {"time": "11:40", "subject": "Программирование", "type": "Практика",
