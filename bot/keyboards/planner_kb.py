@@ -40,7 +40,16 @@ def remind_min_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="15 мин", callback_data="remind_min:15")
     builder.button(text="30 мин", callback_data="remind_min:30")
-    builder.button(text="1 час", callback_data="remind_min:60")
+    builder.button(text="1 час",  callback_data="remind_min:60")
     builder.button(text="2 часа", callback_data="remind_min:120")
     builder.adjust(2)
+    return builder.as_markup()
+
+
+def remind_repeat_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="каждые 5 мин",  callback_data="remind_interval:5")
+    builder.button(text="каждые 15 мин", callback_data="remind_interval:15")
+    builder.button(text="каждые 30 мин", callback_data="remind_interval:30")
+    builder.adjust(1)
     return builder.as_markup()

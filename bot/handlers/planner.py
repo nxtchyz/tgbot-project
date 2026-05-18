@@ -15,6 +15,7 @@ from bot.keyboards.planner_kb import (
     skip_kb,
     remind_type_kb,
     remind_min_kb,
+    remind_repeat_kb,
 )
 
 router = Router()
@@ -27,6 +28,7 @@ class AddTask(StatesGroup):
     due_time = State()
     remind_type = State()
     remind_min = State()
+    remind_interval = State()
 
 
 def _parse_time(text: str) -> str | None:
@@ -166,8 +168,8 @@ async def got_remind_type(callback: CallbackQuery, state: FSMContext) -> None:
         return
 
     if choice == "repeat":
-        summary = await _save_task(state, callback.from_user.id, remind_min=30, repeat_remind=True)
-        await callback.message.edit_text(summary, parse_mode="HTML")
+        await state.set_state(AddTask.remind_interval)
+        await callback.message.edit_text("Как часто напоминать?", reply_markup=remind_repeat_kb())
         await callback.answer()
         return
 
@@ -177,11 +179,20 @@ async def got_remind_type(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
-# remind_min
+# remind_min (один раз)
 @router.callback_query(AddTask.remind_min, F.data.startswith("remind_min:"))
 async def got_remind_min(callback: CallbackQuery, state: FSMContext) -> None:
     remind_min = int(callback.data.split(":")[1])
     summary = await _save_task(state, callback.from_user.id, remind_min=remind_min, repeat_remind=False)
+    await callback.message.edit_text(summary, parse_mode="HTML")
+    await callback.answer()
+
+
+# remind_interval (пока не сделаю)
+@router.callback_query(AddTask.remind_interval, F.data.startswith("remind_interval:"))
+async def got_remind_interval(callback: CallbackQuery, state: FSMContext) -> None:
+    interval = int(callback.data.split(":")[1])
+    summary = await _save_task(state, callback.from_user.id, remind_min=interval, repeat_remind=True)
     await callback.message.edit_text(summary, parse_mode="HTML")
     await callback.answer()
 

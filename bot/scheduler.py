@@ -41,7 +41,7 @@ def setup_scheduler(bot: Bot) -> None:
     scheduler.add_job(
         check_repeat_reminders,
         trigger="interval",
-        minutes=30,
+        minutes=1,
         args=[bot],
         id="repeat_reminders",
         replace_existing=True,
@@ -137,8 +137,17 @@ async def check_repeat_reminders(bot: Bot) -> None:
         except ValueError:
             continue
 
-        remind_at = task_dt - timedelta(minutes=task["remind_min"])
-        if now < remind_at:
+        remind_start = task_dt - timedelta(minutes=task["remind_min"])
+        if now < remind_start:
+            continue
+
+        # Не дублируем уведомление в момент дедлайна (оно в check_upcoming_reminders)
+        if abs((task_dt - now).total_seconds()) <= 59:
+            continue
+
+        elapsed = (now - remind_start).total_seconds()
+        interval = task["remind_min"] * 60
+        if elapsed % interval > 59:
             continue
 
         text = (
