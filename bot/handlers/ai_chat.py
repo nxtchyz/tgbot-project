@@ -77,4 +77,4 @@ async def ai_handler(message: Message) -> None:
     except Exception as e:
         log.error("Gemini error: %s", e, exc_info=True)
         _histories[user_id].pop()
-        await message.answer("⚠️ Не удалось получить ответ, попробуй чуть позже.")
+        await message.answer(f"⚠️ Ошибка: <code>{type(e).__name__}: {e}</code>", parse_mode="HTML")
