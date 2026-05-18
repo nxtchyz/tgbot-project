@@ -3,7 +3,7 @@ import asyncio
 import logging
 from collections import defaultdict
 
-import google.generativeai as genai
+from groq import Groq
 from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
 from aiogram.types import Message
@@ -18,29 +18,28 @@ SYSTEM_PROMPT = (
     "Помогай с любыми вопросами: учёба, советы, объяснения, идеи и всё остальное."
 )
 
-model = None
-if config.GEMINI_API_KEY:
-    genai.configure(api_key=config.GEMINI_API_KEY)
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        system_instruction=SYSTEM_PROMPT,
-    )
+client = None
+if config.GROQ_API_KEY:
+    client = Groq(api_key=config.GROQ_API_KEY)
 
-# История диалога в памяти, per user_id
 _histories: dict[int, list[dict]] = defaultdict(list)
 MAX_HISTORY = 40  # последние 20 обменов
 
 router = Router()
 
 
-def _get_history(user_id: int) -> list[dict]:
-    return _histories[user_id]
-
-
 def _push(user_id: int, role: str, text: str) -> None:
-    _histories[user_id].append({"role": role, "parts": [text]})
+    _histories[user_id].append({"role": role, "content": text})
     if len(_histories[user_id]) > MAX_HISTORY:
         _histories[user_id] = _histories[user_id][-MAX_HISTORY:]
+
+
+def _build_messages(user_id: int, user_text: str) -> list[dict]:
+    return (
+        [{"role": "system", "content": SYSTEM_PROMPT}]
+        + _histories[user_id]
+        + [{"role": "user", "content": user_text}]
+    )
 
 
 # ── /newchat — сбросить историю ───────────────────────────────────────────────
@@ -52,12 +51,11 @@ async def cmd_newchat(message: Message) -> None:
 
 
 # ── Основной AI-обработчик ────────────────────────────────────────────────────
-# StateFilter(None) — срабатывает только когда пользователь НЕ в FSM-состоянии
 
 @router.message(StateFilter(None), F.text, ~F.text.startswith("/"))
 async def ai_handler(message: Message) -> None:
-    if model is None:
-        await message.answer("⚠️ AI-ассистент не настроен: отсутствует GEMINI_API_KEY.")
+    if client is None:
+        await message.answer("⚠️ AI-ассистент не настроен: отсутствует GROQ_API_KEY.")
         return
 
     user_id = message.from_user.id
@@ -65,16 +63,21 @@ async def ai_handler(message: Message) -> None:
 
     await message.bot.send_chat_action(message.chat.id, "typing")
 
-    history_snapshot = _get_history(user_id).copy()
-    _push(user_id, "user", user_text)
+    messages = _build_messages(user_id, user_text)
 
     try:
-        chat = model.start_chat(history=history_snapshot)
-        response = await asyncio.to_thread(chat.send_message, user_text)
-        reply = response.text
-        _push(user_id, "model", reply)
+        def _call() -> str:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                max_tokens=1024,
+            )
+            return response.choices[0].message.content
+
+        reply = await asyncio.to_thread(_call)
+        _push(user_id, "user", user_text)
+        _push(user_id, "assistant", reply)
         await message.answer(reply)
     except Exception as e:
-        log.error("Gemini error: %s", e, exc_info=True)
-        _histories[user_id].pop()
+        log.error("Groq error: %s", e, exc_info=True)
         await message.answer(f"⚠️ Ошибка: <code>{type(e).__name__}: {e}</code>", parse_mode="HTML")
