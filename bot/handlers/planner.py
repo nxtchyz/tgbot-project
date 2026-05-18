@@ -9,7 +9,13 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, CallbackQuery
 
 from db import crud
-from bot.keyboards.planner_kb import tasks_list_kb, task_actions_kb
+from bot.keyboards.planner_kb import (
+    tasks_list_kb,
+    task_actions_kb,
+    skip_kb,
+    remind_type_kb,
+    remind_min_kb,
+)
 
 router = Router()
 
@@ -19,7 +25,48 @@ class AddTask(StatesGroup):
     description = State()
     due_date = State()
     due_time = State()
+    remind_type = State()
     remind_min = State()
+
+
+def _parse_time(text: str) -> str | None:
+    """Convert dot-format time (9.30, 21.00) to HH:MM. Returns None if invalid."""
+    m = re.match(r"^(\d{1,2})\.(\d{2})$", text.strip())
+    if not m:
+        return None
+    h, minute = int(m.group(1)), int(m.group(2))
+    if not (0 <= h <= 23 and 0 <= minute <= 59):
+        return None
+    return f"{h:02d}:{minute:02d}"
+
+
+def _format_task_summary(data: dict, task_id: int, remind_min: int, repeat_remind: bool) -> str:
+    lines = [f"✅ Задача добавлена (#{task_id})", f"<b>{data['title']}</b>"]
+    if data.get("description"):
+        lines.append(data["description"])
+    if data.get("due_date"):
+        time_part = f" в {data['due_time']}" if data.get("due_time") else ""
+        lines.append(f"📅 {data['due_date']}{time_part}")
+    if repeat_remind:
+        lines.append("🔁 Буду напоминать каждые 30 мин до выполнения")
+    elif remind_min:
+        lines.append(f"🔔 Напомню за {remind_min} мин.")
+    return "\n".join(lines)
+
+
+async def _save_task(state: FSMContext, user_id: int, remind_min: int, repeat_remind: bool) -> str:
+    data = await state.get_data()
+    await state.clear()
+    task_id = await crud.add_task(
+        user_id=user_id,
+        title=data["title"],
+        description=data.get("description"),
+        due_date=data.get("due_date"),
+        due_time=data.get("due_time"),
+        remind_min=remind_min,
+        repeat_remind=repeat_remind,
+    )
+    return _format_task_summary(data, task_id, remind_min, repeat_remind)
 
 
 # ── /tasks — список дел ────────────────────────────────────────────────────────
@@ -45,77 +92,98 @@ async def cmd_add(message: Message, state: FSMContext) -> None:
 async def got_title(message: Message, state: FSMContext) -> None:
     await state.update_data(title=message.text.strip())
     await state.set_state(AddTask.description)
-    await message.answer("Краткое описание (или /skip чтобы пропустить):")
+    await message.answer("Краткое описание:", reply_markup=skip_kb())
 
 
+# description — текст или кнопка «Пропустить»
 @router.message(AddTask.description)
 async def got_description(message: Message, state: FSMContext) -> None:
-    desc = None if message.text.strip() == "/skip" else message.text.strip()
-    await state.update_data(description=desc)
+    await state.update_data(description=message.text.strip())
     await state.set_state(AddTask.due_date)
-    await message.answer("Дата дедлайна в формате ДД.ММ.ГГГГ (или /skip):")
+    await message.answer("Дата дедлайна в формате ДД.ММ.ГГГГ:", reply_markup=skip_kb())
 
 
+@router.callback_query(AddTask.description, F.data == "skip")
+async def skip_description(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.update_data(description=None)
+    await state.set_state(AddTask.due_date)
+    await callback.message.edit_text("Дата дедлайна в формате ДД.ММ.ГГГГ:", reply_markup=skip_kb())
+    await callback.answer()
+
+
+# due_date
 @router.message(AddTask.due_date)
 async def got_due_date(message: Message, state: FSMContext) -> None:
-    text = message.text.strip()
-    if text == "/skip":
-        await state.update_data(due_date=None)
-    else:
-        try:
-            parsed = datetime.strptime(text, "%d.%m.%Y").date()
-            await state.update_data(due_date=parsed.isoformat())
-        except ValueError:
-            await message.answer("Неверный формат. Попробуй ДД.ММ.ГГГГ или /skip:")
-            return
+    try:
+        parsed = datetime.strptime(message.text.strip(), "%d.%m.%Y").date()
+        await state.update_data(due_date=parsed.isoformat())
+    except ValueError:
+        await message.answer("Неверный формат. Попробуй ДД.ММ.ГГГГ:", reply_markup=skip_kb())
+        return
     await state.set_state(AddTask.due_time)
-    await message.answer("Время в формате ЧЧ:ММ (или /skip):")
+    await message.answer("Время дедлайна (например 9.30 или 21.00):", reply_markup=skip_kb())
 
 
+@router.callback_query(AddTask.due_date, F.data == "skip")
+async def skip_due_date(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.update_data(due_date=None)
+    await state.set_state(AddTask.due_time)
+    await callback.message.edit_text(
+        "Время дедлайна (например 9.30 или 21.00):", reply_markup=skip_kb()
+    )
+    await callback.answer()
+
+
+# due_time
 @router.message(AddTask.due_time)
 async def got_due_time(message: Message, state: FSMContext) -> None:
-    text = message.text.strip()
-    if text == "/skip":
-        await state.update_data(due_time=None)
-    else:
-        if not re.match(r"^\d{2}:\d{2}$", text):
-            await message.answer("Неверный формат. Попробуй ЧЧ:ММ или /skip:")
-            return
-        await state.update_data(due_time=text)
+    parsed = _parse_time(message.text)
+    if parsed is None:
+        await message.answer("Неверный формат. Используй точку: 9.30, 21.00:", reply_markup=skip_kb())
+        return
+    await state.update_data(due_time=parsed)
+    await state.set_state(AddTask.remind_type)
+    await message.answer("Как напоминать?", reply_markup=remind_type_kb())
+
+
+@router.callback_query(AddTask.due_time, F.data == "skip")
+async def skip_due_time(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.update_data(due_time=None)
+    await state.set_state(AddTask.remind_type)
+    await callback.message.edit_text("Как напоминать?", reply_markup=remind_type_kb())
+    await callback.answer()
+
+
+# remind_type
+@router.callback_query(AddTask.remind_type, F.data.startswith("remind_type:"))
+async def got_remind_type(callback: CallbackQuery, state: FSMContext) -> None:
+    choice = callback.data.split(":")[1]
+
+    if choice == "none":
+        summary = await _save_task(state, callback.from_user.id, remind_min=0, repeat_remind=False)
+        await callback.message.edit_text(summary, parse_mode="HTML")
+        await callback.answer()
+        return
+
+    if choice == "repeat":
+        summary = await _save_task(state, callback.from_user.id, remind_min=30, repeat_remind=True)
+        await callback.message.edit_text(summary, parse_mode="HTML")
+        await callback.answer()
+        return
+
+    # once → ask how many minutes before
     await state.set_state(AddTask.remind_min)
-    await message.answer("За сколько минут напомнить? (по умолчанию 30, или /skip):")
+    await callback.message.edit_text("За сколько минут напомнить?", reply_markup=remind_min_kb())
+    await callback.answer()
 
 
-@router.message(AddTask.remind_min)
-async def got_remind_min(message: Message, state: FSMContext) -> None:
-    text = message.text.strip()
-    remind_min = 30
-    if text != "/skip":
-        if not text.isdigit():
-            await message.answer("Введи число минут или /skip:")
-            return
-        remind_min = int(text)
-
-    data = await state.get_data()
-    await state.clear()
-
-    task_id = await crud.add_task(
-        user_id=message.from_user.id,
-        title=data["title"],
-        description=data.get("description"),
-        due_date=data.get("due_date"),
-        due_time=data.get("due_time"),
-        remind_min=remind_min,
-    )
-
-    lines = [f"✅ Задача добавлена (#{task_id})", f"<b>{data['title']}</b>"]
-    if data.get("description"):
-        lines.append(data["description"])
-    if data.get("due_date"):
-        lines.append(f"📅 {data['due_date']}" + (f" в {data['due_time']}" if data.get("due_time") else ""))
-    lines.append(f"🔔 Напомню за {remind_min} мин.")
-
-    await message.answer("\n".join(lines), parse_mode="HTML")
+# remind_min
+@router.callback_query(AddTask.remind_min, F.data.startswith("remind_min:"))
+async def got_remind_min(callback: CallbackQuery, state: FSMContext) -> None:
+    remind_min = int(callback.data.split(":")[1])
+    summary = await _save_task(state, callback.from_user.id, remind_min=remind_min, repeat_remind=False)
+    await callback.message.edit_text(summary, parse_mode="HTML")
+    await callback.answer()
 
 
 # ── /today — сводка на сегодня ─────────────────────────────────────────────────
@@ -148,8 +216,12 @@ async def cb_view_task(callback: CallbackQuery) -> None:
     if task["description"]:
         lines.append(task["description"])
     if task["due_date"]:
-        lines.append(f"📅 {task['due_date']}" + (f" в {task['due_time']}" if task["due_time"] else ""))
-    lines.append(f"🔔 Напоминание за {task['remind_min']} мин.")
+        time_part = f" в {task['due_time']}" if task["due_time"] else ""
+        lines.append(f"📅 {task['due_date']}{time_part}")
+    if task["repeat_remind"]:
+        lines.append("🔁 Напоминание каждые 30 мин до выполнения")
+    elif task["remind_min"]:
+        lines.append(f"🔔 Напоминание за {task['remind_min']} мин.")
     lines.append("✅ Выполнено" if task["done"] else "🕐 Активна")
 
     await callback.message.edit_text(
@@ -165,9 +237,7 @@ async def cb_mark_done(callback: CallbackQuery) -> None:
     task_id = int(callback.data.split(":")[1])
     await crud.mark_done(task_id, callback.from_user.id)
     await callback.answer("Отмечено как выполненное!")
-    await callback.message.edit_reply_markup(
-        reply_markup=task_actions_kb(task_id, done=True)
-    )
+    await callback.message.edit_reply_markup(reply_markup=task_actions_kb(task_id, done=True))
 
 
 @router.callback_query(F.data.startswith("delete:"))

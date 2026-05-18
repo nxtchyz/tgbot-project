@@ -38,6 +38,14 @@ def setup_scheduler(bot: Bot) -> None:
         id="upcoming_reminders",
         replace_existing=True,
     )
+    scheduler.add_job(
+        check_repeat_reminders,
+        trigger="interval",
+        minutes=30,
+        args=[bot],
+        id="repeat_reminders",
+        replace_existing=True,
+    )
     scheduler.start()
 
 
@@ -100,3 +108,30 @@ async def check_upcoming_reminders(bot: Bot) -> None:
                 await bot.send_message(task["user_id"], text, parse_mode="HTML")
             except Exception:
                 pass
+
+
+async def check_repeat_reminders(bot: Bot) -> None:
+    now = moscow_now()
+    tasks = await crud.get_repeat_remind_tasks()
+
+    for task in tasks:
+        try:
+            task_dt = datetime.strptime(
+                f"{task['due_date']} {task['due_time']}", "%Y-%m-%d %H:%M"
+            )
+        except ValueError:
+            continue
+
+        remind_at = task_dt - timedelta(minutes=task["remind_min"])
+        if now < remind_at:
+            continue
+
+        text = (
+            f"🔁 <b>Напоминание!</b>\n"
+            f"<b>{task['title']}</b>\n"
+            f"⏰ Дедлайн: {task['due_date']} {task['due_time']}"
+        )
+        try:
+            await bot.send_message(task["user_id"], text, parse_mode="HTML")
+        except Exception:
+            pass

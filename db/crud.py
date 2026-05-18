@@ -3,6 +3,22 @@ import aiosqlite
 from db.models import DB_PATH
 
 
+async def upsert_user(user_id: int, username: str | None, first_name: str | None) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            """
+            INSERT INTO users (user_id, username, first_name, last_seen)
+            VALUES (?, ?, ?, datetime('now'))
+            ON CONFLICT(user_id) DO UPDATE SET
+                username   = excluded.username,
+                first_name = excluded.first_name,
+                last_seen  = datetime('now')
+            """,
+            (user_id, username, first_name),
+        )
+        await db.commit()
+
+
 async def add_task(
     user_id: int,
     title: str,
@@ -10,14 +26,15 @@ async def add_task(
     due_date: str | None,
     due_time: str | None,
     remind_min: int = 30,
+    repeat_remind: bool = False,
 ) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
             """
-            INSERT INTO tasks (user_id, title, description, due_date, due_time, remind_min)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO tasks (user_id, title, description, due_date, due_time, remind_min, repeat_remind)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (user_id, title, description, due_date, due_time, remind_min),
+            (user_id, title, description, due_date, due_time, remind_min, int(repeat_remind)),
         )
         await db.commit()
         return cursor.lastrowid
@@ -86,6 +103,21 @@ async def get_todays_tasks(user_id: int, today: str) -> list[dict]:
             ORDER BY due_time
             """,
             (user_id, today),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def get_repeat_remind_tasks() -> list[dict]:
+    """Return undone tasks with repeat_remind=1 that have due_date and due_time."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT * FROM tasks
+            WHERE repeat_remind = 1 AND done = 0
+              AND due_date IS NOT NULL AND due_time IS NOT NULL
+            """
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
