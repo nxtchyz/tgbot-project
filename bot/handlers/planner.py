@@ -31,6 +31,20 @@ class AddTask(StatesGroup):
     remind_interval = State()
 
 
+def _parse_date(text: str) -> date | None:
+    """Принимает ДД.ММ или ДД.ММ.ГГГГ, возвращает date или None."""
+    text = text.strip()
+    try:
+        return datetime.strptime(text, "%d.%m.%Y").date()
+    except ValueError:
+        pass
+    try:
+        parsed = datetime.strptime(text, "%d.%m").date()
+        return parsed.replace(year=date.today().year)
+    except ValueError:
+        return None
+
+
 def _parse_time(text: str) -> str | None:
     """Convert dot-format time (9.30, 21.00) to HH:MM. Returns None if invalid."""
     m = re.match(r"^(\d{1,2})\.(\d{2})$", text.strip())
@@ -102,26 +116,28 @@ async def got_title(message: Message, state: FSMContext) -> None:
 async def got_description(message: Message, state: FSMContext) -> None:
     await state.update_data(description=message.text.strip())
     await state.set_state(AddTask.due_date)
-    await message.answer("Дата дедлайна в формате ДД.ММ.ГГГГ:", reply_markup=skip_kb())
+    await message.answer("Дата дедлайна (ДД.ММ или ДД.ММ.ГГГГ):", reply_markup=skip_kb())
 
 
 @router.callback_query(AddTask.description, F.data == "skip")
 async def skip_description(callback: CallbackQuery, state: FSMContext) -> None:
     await state.update_data(description=None)
     await state.set_state(AddTask.due_date)
-    await callback.message.edit_text("Дата дедлайна в формате ДД.ММ.ГГГГ:", reply_markup=skip_kb())
+    await callback.message.edit_text("Дата дедлайна (ДД.ММ или ДД.ММ.ГГГГ):", reply_markup=skip_kb())
     await callback.answer()
 
 
 # due_date
 @router.message(AddTask.due_date)
 async def got_due_date(message: Message, state: FSMContext) -> None:
-    try:
-        parsed = datetime.strptime(message.text.strip(), "%d.%m.%Y").date()
-        await state.update_data(due_date=parsed.isoformat())
-    except ValueError:
-        await message.answer("Неверный формат. Попробуй ДД.ММ.ГГГГ:", reply_markup=skip_kb())
+    parsed = _parse_date(message.text)
+    if parsed is None:
+        await message.answer("Неверный формат. Попробуй ДД.ММ или ДД.ММ.ГГГГ:", reply_markup=skip_kb())
         return
+    if parsed < date.today():
+        await message.answer("Эта дата уже прошла. Введи будущую дату:", reply_markup=skip_kb())
+        return
+    await state.update_data(due_date=parsed.isoformat())
     await state.set_state(AddTask.due_time)
     await message.answer("Время дедлайна (например 9.30 или 21.00):", reply_markup=skip_kb())
 
@@ -143,6 +159,14 @@ async def got_due_time(message: Message, state: FSMContext) -> None:
     if parsed is None:
         await message.answer("Неверный формат. Используй точку: 9.30, 21.00:", reply_markup=skip_kb())
         return
+    data = await state.get_data()
+    if data.get("due_date") == date.today().isoformat():
+        from bot.scheduler import moscow_now
+        now = moscow_now()
+        h, m = map(int, parsed.split(":"))
+        if (h, m) <= (now.hour, now.minute):
+            await message.answer("Это время уже прошло. Введи будущее время:", reply_markup=skip_kb())
+            return
     await state.update_data(due_time=parsed)
     await state.set_state(AddTask.remind_type)
     await message.answer("Как напоминать?", reply_markup=remind_type_kb())
