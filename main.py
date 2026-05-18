@@ -6,7 +6,8 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 import config
 from db.models import init_db
-from bot.handlers import planner
+from bot.handlers import planner, start
+from bot.handlers.start import MAIN_MENU_COMMANDS
 from bot.scheduler import setup_scheduler
 
 
@@ -24,7 +25,11 @@ async def main() -> None:
     bot = Bot(token=config.BOT_TOKEN)
     dp = Dispatcher(storage=MemoryStorage())
 
+    dp.include_router(start.router)
     dp.include_router(planner.router)
+
+    await bot.set_my_commands(MAIN_MENU_COMMANDS)
+    log.info("Bot commands set")
 
     setup_scheduler(bot)
     log.info("Scheduler started")
