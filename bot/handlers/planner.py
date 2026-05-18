@@ -1,6 +1,17 @@
 from __future__ import annotations
 import re
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
+
+MOSCOW = ZoneInfo("Europe/Moscow")
+
+
+def _moscow_now() -> datetime:
+    return datetime.now(MOSCOW).replace(tzinfo=None)
+
+
+def _today() -> date:
+    return datetime.now(MOSCOW).date()
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -134,7 +145,7 @@ async def got_due_date(message: Message, state: FSMContext) -> None:
     if parsed is None:
         await message.answer("Неверный формат. Попробуй ДД.ММ или ДД.ММ.ГГГГ:", reply_markup=skip_kb())
         return
-    if parsed < date.today():
+    if parsed < _today():
         await message.answer("Эта дата уже прошла. Введи будущую дату:", reply_markup=skip_kb())
         return
     await state.update_data(due_date=parsed.isoformat())
@@ -160,9 +171,8 @@ async def got_due_time(message: Message, state: FSMContext) -> None:
         await message.answer("Неверный формат. Используй точку: 9.30, 21.00:", reply_markup=skip_kb())
         return
     data = await state.get_data()
-    if data.get("due_date") == date.today().isoformat():
-        from bot.scheduler import moscow_now
-        now = moscow_now()
+    if data.get("due_date") == _today().isoformat():
+        now = _moscow_now()
         h, m = map(int, parsed.split(":"))
         if (h, m) <= (now.hour, now.minute):
             await message.answer("Это время уже прошло. Введи будущее время:", reply_markup=skip_kb())
@@ -225,7 +235,7 @@ async def got_remind_interval(callback: CallbackQuery, state: FSMContext) -> Non
 
 @router.message(Command("today"))
 async def cmd_today(message: Message) -> None:
-    today = date.today().isoformat()
+    today = _today().isoformat()
     tasks = await crud.get_todays_tasks(message.from_user.id, today)
     if not tasks:
         await message.answer("На сегодня задач нет. Отдыхай!")
@@ -312,7 +322,7 @@ async def cb_nav_tasks(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "nav:today")
 async def cb_nav_today(callback: CallbackQuery) -> None:
-    today = date.today().isoformat()
+    today = _today().isoformat()
     tasks = await crud.get_todays_tasks(callback.from_user.id, today)
     if not tasks:
         await callback.message.answer("На сегодня задач нет. Отдыхай!")
