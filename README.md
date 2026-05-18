@@ -1,4 +1,4 @@
-# 🤖 Personal Telegram Bot
+# 🤖 Правая рука — Personal Telegram Bot
 
 Персональный многофункциональный Telegram-бот на Python.
 
@@ -14,8 +14,14 @@
 ### 📚 Расписание пар
 - Расписание на сегодня с учётом чётности недели
 - Расписание на всю неделю
-- Отображение номера пары, преподавателя и аудитории
-- Автоматическое определение окон между парами
+- Номера пар, преподаватели, аудитории
+- Автоматическое отображение окон между парами
+
+### 🤖 AI-ассистент (Gemini)
+- Отвечает на любые свободные сообщения
+- Помнит контекст последних 20 обменов
+- Не мешает работе команд и ежедневника
+- `/newchat` — сбросить историю и начать заново
 
 ## Стек
 
@@ -23,12 +29,13 @@
 - **aiogram 3.x** — Telegram Bot API
 - **SQLite + aiosqlite** — база данных
 - **APScheduler** — планировщик напоминаний
+- **Google Gemini 1.5 Flash** — AI-ассистент
 - **python-dotenv** — конфигурация
 
 ## Установка
 
 ```bash
-git clone https://github.com/ИМЯ/tgbot-project.git
+git clone https://github.com/nxtchyz/tgbot-project.git
 cd tgbot-project
 pip install -r requirements.txt
 ```
@@ -36,10 +43,12 @@ pip install -r requirements.txt
 Создай файл `.env` в корне проекта:
 
 ```
-BOT_TOKEN=your_token_here
+BOT_TOKEN=your_telegram_token
+GEMINI_API_KEY=your_gemini_key
 ```
 
-Получить токен можно у [@BotFather](https://t.me/BotFather).
+- Telegram токен — у [@BotFather](https://t.me/BotFather)
+- Gemini API ключ — на [aistudio.google.com](https://aistudio.google.com)
 
 ## Запуск
 
@@ -55,10 +64,11 @@ tgbot_project/
 │   ├── handlers/
 │   │   ├── start.py        # /start, /menu, навигация по разделам
 │   │   ├── planner.py      # ежедневник
-│   │   └── schedule.py     # расписание пар
+│   │   ├── schedule.py     # расписание пар
+│   │   └── ai_chat.py      # AI-ассистент (Gemini)
 │   ├── keyboards/
 │   │   └── planner_kb.py   # inline-клавиатуры
-│   └── scheduler.py        # APScheduler — напоминания
+│   └── scheduler.py        # APScheduler — напоминания и сводка
 ├── db/
 │   ├── models.py           # инициализация таблиц
 │   └── crud.py             # операции с БД
@@ -79,4 +89,5 @@ tgbot_project/
 | `/schedule` | Раздел расписания |
 | `/pairs` | Пары на сегодня |
 | `/week` | Расписание на неделю |
+| `/newchat` | Сбросить историю AI-диалога |
 | `/menu` | Вернуться в главное меню |
