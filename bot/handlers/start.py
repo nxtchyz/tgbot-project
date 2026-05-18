@@ -9,9 +9,7 @@ from db.models import DB_PATH
 router = Router()
 
 MAIN_MENU_COMMANDS = [
-    BotCommand(command="start",    description="Главное меню"),
-    BotCommand(command="planner",  description="📅 Ежедневник — дела и напоминания"),
-    BotCommand(command="schedule", description="📚 Расписание — пары по дням"),
+    BotCommand(command="start", description="Главное меню"),
 ]
 
 PLANNER_COMMANDS = [
@@ -105,22 +103,6 @@ async def cb_schedule(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-@router.message(Command("planner"))
-async def cmd_planner(message: Message) -> None:
-    await message.bot.set_my_commands(
-        PLANNER_COMMANDS,
-        scope=BotCommandScopeChat(chat_id=message.chat.id),
-    )
-    await message.answer(
-        "📅 <b>Ежедневник</b>\n\n"
-        "/add — добавить задачу\n"
-        "/tasks — список активных задач\n"
-        "/today — задачи на сегодня\n\n"
-        "<i>/menu — вернуться в главное меню</i>",
-        parse_mode="HTML",
-    )
-
-
 @router.message(Command("getdb"))
 async def cmd_getdb(message: Message) -> None:
     if message.from_user.id != config.ADMIN_ID:
@@ -135,16 +117,3 @@ async def cmd_getdb(message: Message) -> None:
     await message.answer(f"Файл не найден. Проверил: {', '.join(paths_to_check)}\nРабочая папка: {os.getcwd()}")
 
 
-@router.message(Command("schedule"))
-async def cmd_schedule(message: Message) -> None:
-    await message.bot.set_my_commands(
-        SCHEDULE_COMMANDS,
-        scope=BotCommandScopeChat(chat_id=message.chat.id),
-    )
-    await message.answer(
-        "📚 <b>Расписание пар</b>\n\n"
-        "/pairs — пары на сегодня\n"
-        "/week — расписание на всю неделю\n\n"
-        "<i>/menu — вернуться в главное меню</i>",
-        parse_mode="HTML",
-    )
