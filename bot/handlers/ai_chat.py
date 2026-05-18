@@ -78,7 +78,7 @@ async def ai_handler(message: Message) -> None:
         if resp.status != 200:
             error = data.get("error", {}).get("message", str(data))
             log.error("Groq API error %s: %s", resp.status, error)
-            await message.answer(f"⚠️ Ошибка API: <code>{error}</code>", parse_mode="HTML")
+            await message.answer("⚠️ Не удалось получить ответ, попробуй чуть позже.")
             return
 
         reply = data["choices"][0]["message"]["content"]
@@ -88,4 +88,4 @@ async def ai_handler(message: Message) -> None:
 
     except Exception as e:
         log.error("AI handler error: %s", e, exc_info=True)
-        await message.answer(f"⚠️ Ошибка: <code>{type(e).__name__}: {e}</code>", parse_mode="HTML")
+        await message.answer("⚠️ Не удалось получить ответ, попробуй чуть позже.")
