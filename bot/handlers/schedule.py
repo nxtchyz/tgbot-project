@@ -7,12 +7,24 @@ from aiogram.types import Message
 
 router = Router()
 
-# May 18, 2026 (Monday) = odd week (нечётная)
 _REF_ODD_MONDAY = date(2026, 5, 18)
 
-DAY_NAMES = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-MONTHS_GEN = ["", "янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
-TYPE_EMOJI = {"Лекция": "📖", "Практика": "💻"}
+DAY_NAMES   = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
+MONTHS_GEN  = ["", "янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+
+SUBJECT_EMOJI = {
+    "Физкультура":                                    "🏃",
+    "Математический анализ":                          "📊",
+    "Дискретная математика и теор. информатика":      "🧮",
+    "Программирование":                               "⌨️",
+    "Иностранный язык":                               "🌍",
+    "Физика":                                         "⚛️",
+    "Алгебра и геометрия":                            "📐",
+    "История России":                                 "📜",
+    "Информационные технологии":                      "🖥️",
+}
+
+DAY_SEPARATOR = "━━━━━━━━━━━━━━━━━━━"
 
 # weeks: 0 = каждую, 1 = нечётную, 2 = чётную
 SCHEDULE: dict[int, list[dict]] = {
@@ -23,9 +35,9 @@ SCHEDULE: dict[int, list[dict]] = {
         {"time": "11:40", "subject": "Математический анализ", "type": "Лекция",
          "teacher": "Медведев А.Н.", "room": "3324", "weeks": 0},
         {"time": "13:40", "subject": "Дискретная математика и теор. информатика", "type": "Практика",
-         "teacher": "Соловьев С.В.", "room": "4211", "weeks": 0},
+         "teacher": "Мягков И.С.", "room": "4211", "weeks": 0},
         {"time": "15:30", "subject": "Математический анализ", "type": "Практика",
-         "teacher": "Медведев А.Н.", "room": "3421", "weeks": 0},
+         "teacher": "Ульяна", "room": "3421", "weeks": 0},
     ],
     2: [  # Среда
         {"time": "08:00", "subject": "Программирование", "type": "Лекция",
@@ -55,13 +67,12 @@ SCHEDULE: dict[int, list[dict]] = {
         {"time": "09:50", "subject": "Алгебра и геометрия", "type": "Лекция",
          "teacher": "Костырев И.И.", "room": "3308", "weeks": 0},
         {"time": "11:40", "subject": "Программирование", "type": "Практика",
-         "teacher": "Глущенко А.Г.", "room": "1215", "weeks": 0},
+         "teacher": "Голубев С.А.", "room": "1215", "weeks": 0},
     ],
 }
 
 
 def week_parity(d: date | None = None) -> int:
-    """1 = нечётная, 2 = чётная."""
     if d is None:
         d = date.today()
     monday = d - timedelta(days=d.weekday())
@@ -78,15 +89,14 @@ def get_day_pairs(weekday: int, parity: int) -> list[dict]:
 
 
 def fmt_pair(pair: dict) -> str:
-    emoji = TYPE_EMOJI.get(pair["type"], "•")
-    lines = [f"• <b>{pair['time']}</b>  {pair['subject']} {emoji}"]
-    details = []
+    emoji = SUBJECT_EMOJI.get(pair["subject"], "•")
+    lines = [f"{emoji} <b>{pair['time']}</b>  {pair['subject']}"]
+    detail_parts = [f"<i>{pair['type']}</i>"]
     if pair.get("teacher"):
-        details.append(pair["teacher"])
+        detail_parts.append(pair["teacher"])
     if pair.get("room"):
-        details.append(f"ауд. {pair['room']}")
-    if details:
-        lines.append("  " + " · ".join(details))
+        detail_parts.append(f"ауд. {pair['room']}")
+    lines.append("  " + "  ·  ".join(detail_parts))
     return "\n".join(lines)
 
 
@@ -94,8 +104,8 @@ def fmt_day_block(d: date, parity: int) -> str | None:
     pairs = get_day_pairs(d.weekday(), parity)
     if not pairs:
         return None
-    header = f"<b>{DAY_NAMES[d.weekday()]}, {d.day} {MONTHS_GEN[d.month]}</b>"
-    return header + "\n" + "\n\n".join(fmt_pair(p) for p in pairs)
+    header = f"{DAY_SEPARATOR}\n<b>{DAY_NAMES[d.weekday()]}, {d.day} {MONTHS_GEN[d.month]}</b>"
+    return header + "\n\n" + "\n\n".join(fmt_pair(p) for p in pairs)
 
 
 # ── /pairs — пары на сегодня ───────────────────────────────────────────────────
@@ -146,6 +156,6 @@ async def cmd_week(message: Message) -> None:
     header = (
         f"📅 <b>Расписание на неделю</b>\n"
         f"<i>{parity_label(parity)} · "
-        f"{monday.day} {MONTHS_GEN[monday.month]} — {saturday.day} {MONTHS_GEN[saturday.month]}</i>\n"
+        f"{monday.day} {MONTHS_GEN[monday.month]} — {saturday.day} {MONTHS_GEN[saturday.month]}</i>"
     )
     await message.answer(header + "\n" + "\n\n".join(blocks), parse_mode="HTML")
